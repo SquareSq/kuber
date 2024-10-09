@@ -1,0 +1,159 @@
+#Ставим namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: api
+
+--- #Ставим MetalLB
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.0.220-192.168.0.250
+  
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: kube-system
+  name: metallb
+spec:
+  type: LoadBalancer
+  selector:
+    app: metallb
+  ports:
+    - port: 80
+      targetPort: 80
+
+--- #Конфигмапы для приложений
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app1-content
+  namespace: api
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <title>App 1</title>
+    </head>
+    <body>
+        <h1>Это App 1</h1>
+        <p>Страница от Nginx.</p>
+    </body>
+    </html>
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app2-content
+  namespace: api
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <title>App 2</title>
+    </head>
+    <body>
+        <h1>Это App 2</h1>
+        <p>Страница от Nginx.</p>
+    </body>
+    </html>
+
+--- #Деплои и сервисы для приложений
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app1
+  namespace: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: app1
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      containers:
+      - name: app1
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: app1-content
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: app1-content
+        configMap:
+          name: app1-content
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1-service
+  namespace: api
+spec:
+  selector:
+    app: app1
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app2
+  namespace: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: app2
+  template:
+    metadata:
+      labels:
+        app: app2
+    spec:
+      containers:
+      - name: app2
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: app2-content
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: app2-content
+        configMap:
+          name: app2-content
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app2-service
+  namespace: api
+spec:
+  selector:
+    app: app2
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+
+---
