@@ -16,3 +16,35 @@ kubectl apply -f nginx_ingress.yml
 
 После запускаем ingress:
 kubectl apply -f ingress.yml
+
+
+Установка NFS storage volume:
+Подготавливаем сервер
+
+Устанавливаем nfs-сервер
+sudo apt install nfs-kernel-server
+
+Создаем директории приложений
+sudo mkdir -p /srv/nfs/app1
+sudo mkdir -p /srv/nfs/app2
+
+Меняем разрешения
+sudo chown sq:sq /srv/nfs/app1
+sudo chown sq:sq /srv/nfs/app2
+
+Редактируем файл конфигурации NFS по пути /etc/exports
+/srv/nfs/app1 *(rw,sync,no_subtree_check)
+/srv/nfs/app2 *(rw,sync,no_subtree_check)
+
+Перезапускаем службу
+sudo exportfs -a
+sudo systemctl restart nfs-kernel-server
+Проверяем
+sudo systemctl status nfs-kernel-server
+
+Далее вносим изменения в деплои
+Добавляем 
+PersistentVolume
+PersistentVolumeClaim
+
+Все эти настройки находятся в big_mf.yml
