@@ -47,4 +47,4 @@ sudo systemctl status nfs-kernel-server
 PersistentVolume
 PersistentVolumeClaim
 
-Все эти настройки находятся в big_mf.yml
+Все эти настройки находятся в additional/big_mf_add.yml

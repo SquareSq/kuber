@@ -1,10 +1,10 @@
-#Ставим namespace
+# Ставим namespace
 apiVersion: v1
 kind: Namespace
 metadata:
   name: api
 
---- #Ставим MetalLB
+--- # Ставим MetalLB
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -12,8 +12,8 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 192.168.0.220-192.168.0.250
-  
+  - 192.168.88.220-192.168.88.250
+
 ---
 apiVersion: v1
 kind: Service
@@ -28,7 +28,7 @@ spec:
     - port: 80
       targetPort: 80
 
---- #Конфигмапы для приложений
+--- # Конфигмапы для приложений
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -68,7 +68,64 @@ data:
     </body>
     </html>
 
---- #Деплои и сервисы для приложений
+# Ставим nfs storage volume
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: app1-pv
+  namespace: api
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: /srv/nfs/app1
+    server: 192.168.88.230
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: app2-pv
+  namespace: api
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: /srv/nfs/app2
+    server: 192.168.88.230
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app1-pvc
+  namespace: api
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app2-pvc
+  namespace: api
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+--- # Ставим деплои и сервисы
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -90,13 +147,18 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-        - name: app1-content
+        - name: app1-storage
           mountPath: /usr/share/nginx/html
+        - name: nfs-storage
+          mountPath: /srv/nfs/app1
       volumes:
-      - name: app1-content
+      - name: app1-storage
         configMap:
           name: app1-content
-
+      - name: nfs-storage
+        persistentVolumeClaim:
+          claimName: app1-pvc
+          
 ---
 apiVersion: v1
 kind: Service
@@ -112,7 +174,6 @@ spec:
     targetPort: 80
   type: ClusterIP
 
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -134,12 +195,17 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-        - name: app2-content
+        - name: app2-storage
           mountPath: /usr/share/nginx/html
+        - name: nfs-storage
+          mountPath: /srv/nfs/app2
       volumes:
-      - name: app2-content
+      - name: app2-storage
         configMap:
           name: app2-content
+      - name: nfs-storage
+        persistentVolumeClaim:
+          claimName: app2-pvc
 
 ---
 apiVersion: v1
